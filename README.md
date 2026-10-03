@@ -26,7 +26,7 @@ Crie `.env` somente no primeiro acesso. O único `.env` fica nesta pasta e o Com
 - Banco conectado: http://localhost:3000/api/v1/health/ready
 - Swagger: http://localhost:3000/docs
 
-As rotas de saúde retornam `status: ok`; readiness também retorna `database: up`. O frontend abre uma página mínima de boas-vindas; a verificação real do banco fica no health check do Docker. `docker compose ps` deve mostrar api, frontend e db como healthy.
+As rotas de saúde retornam `status: ok`; readiness também retorna `database: up`. A tela mostra apenas H1 AeroClima. src/main.ts faz fetch da saúde e registra o resultado no console; o Docker verifica a conexão real com o banco. `docker compose ps` deve mostrar api, frontend e db como healthy.
 
 ```powershell
 docker compose exec api npm run build
@@ -40,7 +40,7 @@ docker compose exec frontend npm run lint
 
 ## Trabalhar juntos
 
-Compartilhe os repositórios; cada pessoa instala Docker e inicia seu próprio ambiente e banco. Lockfiles versionados e `npm ci` alinham as dependências. Código src atualiza ao salvar. Ao mudar dependências, Dockerfile ou configurações, execute `docker compose up --build -d` novamente. Cada repositório possui CI para build, lint, formatação, testes e construção da imagem.
+Compartilhe os repositórios; cada pessoa instala Docker e inicia seu próprio ambiente e banco. Lockfiles versionados e `npm ci` alinham as dependências. Trabalho direto na main, com commit/pull/push e coordenação dos arquivos compartilhados, está explicado no guia. Código src atualiza ao salvar. Ao mudar dependências, Dockerfile ou configurações, execute `docker compose up --build -d` novamente. Cada repositório possui CI para build, lint, formatação, testes e construção da imagem.
 
 ```powershell
 docker compose logs --tail=100 api frontend db
@@ -64,3 +64,7 @@ Use `\dt` para listar as tabelas. A porta PostgreSQL não é publicada no Window
 Configuração validada, Swagger, prefixo `/api/v1`, CORS, headers de segurança, validação global e health checks. Autenticação, CRUD, mapas e offline serão implementados depois. Mala/bagagem fora do escopo. Publicação em VPS fica para outra etapa.
 
 Node local é opcional (linha 24, >=24.15). Para validar fora do Docker: `npm ci`, `npm run build`, `npm test`, `npm run test:e2e` e `npm run lint`. Testes HTTP simulam o acesso ao banco; readiness testa a conexão real.
+
+## Integrações preparadas
+
+Clientes HTTP de Open-Meteo (clima/cidades) e Geoapify (endereços, pontos turísticos, hotéis e rotas), com timeout. GEOAPIFY_API_KEY é opcional no único .env; o projeto inicia sem ela. Estes clientes ainda não têm endpoints públicos ou telas. Veja o guia para ativação, limites e responsabilidades de cada fornecedor.
