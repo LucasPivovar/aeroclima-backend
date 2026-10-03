@@ -26,7 +26,7 @@ Crie `.env` somente no primeiro acesso. O único `.env` fica nesta pasta e o Com
 - Banco conectado: http://localhost:3000/api/v1/health/ready
 - Swagger: http://localhost:3000/docs
 
-As rotas de saúde retornam `status: ok`; readiness também retorna `database: up`. O frontend verifica os dois endpoints. `docker compose ps` deve mostrar api, frontend e db como healthy.
+As rotas de saúde retornam `status: ok`; readiness também retorna `database: up`. O frontend abre uma página mínima de boas-vindas; a verificação real do banco fica no health check do Docker. `docker compose ps` deve mostrar api, frontend e db como healthy.
 
 ```powershell
 docker compose exec api npm run build

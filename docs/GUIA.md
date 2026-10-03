@@ -130,7 +130,7 @@ docker compose exec api npx nest generate service trips --no-spec
 
 O gerador grava em src, que está montado na máquina; os arquivos permanecem depois de parar o container. `--no-spec` evita testes vazios gerados automaticamente. Escreva testes para o comportamento real quando implementar os casos de uso. Esses comandos são para quando vocês começarem viagens; a base não contém esse módulo ainda.
 
-No frontend, novas páginas entram em `src/views/`; registre seus caminhos em `src/router/index.ts`. Componentes reutilizáveis podem entrar em `src/components/` quando necessários. Chamadas HTTP ficam em `src/services/`. Pinia foi retirado porque ainda não há estado compartilhado que justifique usá-lo.
+No frontend, novas páginas entram em `src/views/`; registre seus caminhos em `src/router/index.ts`. Componentes reutilizáveis podem entrar em `src/components/` quando necessários. Chamadas HTTP ficam em `src/services/`. Pinia já está registrado em src/main.ts; criem stores em src/stores/ quando uma funcionalidade precisar compartilhar estado entre páginas.
 
 ## 8. Testar e instalar dependências
 
@@ -252,14 +252,14 @@ docker compose up -d
 | tsconfig.json | Única configuração TypeScript do frontend: inclui Vue, scripts, testes e configs Vite/Vitest. |
 | vite.config.ts | Plugin Vue, alias @ para src, porta 5173, atualização de código e proxy para API. |
 | vitest.config.ts | Configura testes Vue em jsdom, reaproveitando o plugin/alias do Vite. |
-| src/main.ts | Cria a aplicação Vue, carrega CSS/router e monta App em #app. |
+| src/main.ts | Cria a aplicação Vue, registra Pinia/router, carrega CSS e monta App em #app. |
 | src/App.vue | Componente raiz que exibe a página escolhida pelo router. |
 | src/router/index.ts | Mapeia caminhos de navegação às páginas; hoje só existe a página inicial. |
-| src/views/HomeView.vue | Página inicial: textos, estado da conexão e ação de repetir a consulta. |
+| src/views/HomeView.vue | Página mínima de boas-vindas; substituam pelo primeiro recurso do produto. |
 | src/assets/main.css | Estilos gerais e adaptação para telas menores. |
 | src/services/api.ts | Cliente HTTP dos endpoints de saúde, com timeout e tratamento de falha. |
 | src/services/__tests__/api.spec.ts | Testa caminho das chamadas e respostas de erro. |
-| src/__tests__/HomeView.spec.ts | Testa conexão bem-sucedida e repetição após falha na página. |
+
 
 ### Pastas geradas: por que aparecem tantos arquivos?
 
@@ -274,3 +274,44 @@ docker compose up -d
 Na pasta original da sua máquina, `tmp/` e `output/` vieram também da extração de frames do vídeo. Não pertencem aos dois repositórios da aplicação e não são baixados pelo seu amigo. O README e Compose da pasta pai são atalhos locais; a configuração compartilhada está no repositório backend.
 
 No cotidiano, concentre-se em **src de cada projeto, testes e .env**. Configurações de ferramentas mudam com menos frequência.
+
+
+## 13. Dividir funcionalidades entre duas pessoas
+
+Cada pessoa roda a mesma base no próprio computador. Não precisam de VPS para isso. Combinem uma funcionalidade completa por pessoa, por exemplo: uma implementa viagens (API e tela), outra implementa lugares (API e tela). Antes de começar, combinem nomes de campos, URLs, tipos das respostas e quem altera arquivos compartilhados, como router/index.ts e app.module.ts.
+
+Em cada repositório que sua tarefa usar, partam da main atualizada e criem uma branch própria:
+
+```powershell
+git switch main
+git pull --ff-only
+git switch -c codex/viagens
+```
+
+Desenvolvam, validem e enviem sua branch:
+
+```powershell
+git add .
+git commit -m "feat: adicionar viagens"
+git push -u origin codex/viagens
+```
+
+Abram um pull request para main. A outra pessoa revisa e vocês fazem o merge quando as verificações passarem. Se houver API e tela, abram um PR em cada repositório. Para começar outra tarefa, voltem à main, executem git pull --ff-only e criem uma nova branch. Não alternem branches com alterações pendentes: façam commit primeiro.
+
+Depois de atualizar os dois clones, na pasta do backend:
+
+```powershell
+docker compose up --build -d
+```
+
+Esse comando instala automaticamente as dependências versionadas nos lockfiles e inicia os serviços. Não precisa instalar globalmente Nest, Vue, PostgreSQL ou bibliotecas individuais. Docker e Git continuam necessários em cada máquina; Node local é opcional para suporte do editor.
+
+O Git compartilha código, não os dados do PostgreSQL de cada computador. Quando criarem tabelas manualmente, salvem o SQL correspondente em docs/sql/ na mesma tarefa e expliquem como executá-lo. A outra pessoa executa o mesmo SQL no próprio banco. A base não cria nem aplica scripts de tabelas automaticamente.
+
+## 14. Bibliotecas da base
+
+Frontend: Vue + TypeScript para componentes, Vue Router para navegação, Pinia já registrado para estado compartilhado, Fetch nativo para HTTP e proxy do Vite para a API. Vitest e Vue Test Utils para testes; Oxlint e Prettier para lint e formatação.
+
+Backend: NestJS + Express, configuração de ambiente validada, class-validator e class-transformer para entradas, Swagger para documentação, Helmet e CORS, pg para conexão e pool PostgreSQL. Vitest, Supertest, Oxlint e Prettier para verificações. Docker fornece Node e PostgreSQL.
+
+A infraestrutura está pronta para começar as funcionalidades. Autenticação, biblioteca de mapas e cache offline ainda exigem decisões de implementação; não há integração fictícia pronta. Quando decidirem uma biblioteca nova, uma pessoa a adiciona, envia package.json e package-lock.json no mesmo PR, e a outra só atualiza o clone e reconstrói o Docker. Não é possível prever todas as dependências futuras, mas a instalação fica reproduzível para os dois.
