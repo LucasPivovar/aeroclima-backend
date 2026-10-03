@@ -141,7 +141,7 @@ Open-Meteo permite o endpoint gratuito para uso não comercial, com limites. Par
 
 MapLibre é o renderizador, não um serviço que entrega automaticamente dados de mapas. Não há mapa carregado nem fornecedor de tiles contratado agora. O armazenamento idb também não transforma o mapa em offline completo: baixar regiões/rotas e usar tiles offline é trabalho posterior, conforme permissões do fornecedor. Não use tiles públicos para downloads em massa sem autorização.
 
-Google Places é uma alternativa para busca de lugares/hotéis, com API key e billing. Quando resultados são exibidos sobre mapa, a política exige Google Map. Por isso, esta base usa Geoapify e não integra Google Places com MapLibre. Busca de passagens, tarifas de hotéis ou reservas exige APIs específicas de fornecedores; não está pronta nesta base.
+Google Places é uma alternativa para busca de lugares/hotéis, com API key e billing. Quando resultados são exibidos sobre mapa, a política exige Google Map. Por isso, esta base usa Geoapify e não integra Google Places com MapLibre. Pesquisa de passagens/hotéis com redirecionamento e franquias de bagagem entram no escopo atualizado da seção 6. Tarifas automáticas dependem de acesso adequado confirmado; não estão implementadas nesta base.
 
 Referências oficiais:
 
@@ -157,3 +157,128 @@ Referências oficiais:
 ## 5. Se o Nest registrar EADDRINUSE no container
 
 Confira docker compose logs --tail=100 api. O start:dev usa --no-shell para o Nest encerrar diretamente o processo Node anterior ao recompilar. Se houver um processo antigo de uma execução anterior à correção, execute docker compose restart api para limpar e reiniciar o watcher. Não inicie npm run start:dev duas vezes dentro do mesmo container. Se o erro vier do Docker ao publicar a porta no Windows, outro programa está usando a porta local: encerre-o ou ajuste API_PORT no .env.
+
+## 6. Escopo atualizado — catálogo de descoberta e planejamento
+
+Esta seção atualiza os briefings anteriores. AeroClima reúne cidades, aeroportos, passagens, hospedagens, atrações e experiências para ajudar a planejar uma viagem. A compra/reserva acontece no site externo; o usuário depois registra manualmente o que contratou no AeroClima. Abrir um link não confirma compra, pagamento ou reserva. Autenticação, offline e proteção continuam no bloco final.
+
+### 6.1. Fluxo principal
+
+Pesquisar destino → explorar hotéis/atrações/experiências e opções de transporte → abrir site externo para consultar preços/comprar → cadastrar voo, hospedagem ou atividade na viagem → organizar roteiro, deslocamentos, mapa e lembretes.
+
+O catálogo e o planejamento são separados: hotel descoberto é um lugar; hospedagem contratada é stays. Atração descoberta é um lugar; passeio agendado é activities. Aeroporto é catálogo; voo contratado é flights. Nada passa automaticamente a comprado porque o usuário abriu um site.
+
+### 6.2. Fontes e dependências
+
+| Recurso | Fonte/base da primeira versão | Limite e alternativa |
+|---|---|---|
+| Aeroportos | OurAirports, catálogo importado gratuitamente. | Não fornece tarifas ou disponibilidade de passagens. |
+| Cidades, hotéis e pontos turísticos | Geoapify Geocoding, Places e Place Details no plano Free. | Chave necessária; cota e atribuição do fornecedor. Campos e cobertura podem estar incompletos. |
+| Fotos e enriquecimento de atrações | Wikidata para identificar o lugar; Wikimedia Commons/MediaWiki para mídia e metadados. | Não há garantia de fotos de todo hotel/passeio. Confirmar identidade, autor, licença e atribuição de cada arquivo. |
+| Fotos comerciais de hotel/passeio | Material autorizado pelo estabelecimento/operador ou API de parceiro aprovada. | Não copiar automaticamente galerias do Booking, Google ou de qualquer site só porque uma imagem está acessível. Sem autorização/foto adequada, mostrar estado sem foto. |
+| Preços reais | API de ofertas aprovada e comprovadamente disponível sem custo dentro do uso definido, se houver acesso. | Fora da dependência obrigatória desta versão. Sem acesso confirmado, botão Consultar preços no site. |
+| Links de compra/reserva | URL oficial do hotel, companhia, atração ou operador; link de pesquisa externa quando não houver link direto confiável. | Não presumir que toda URL aceita datas/passageiros como parâmetros. Usar somente formatos conhecidos e identificar o destino externo. |
+| Mapas e rotas | MapLibre já instalado; APIs Geoapify já previstas. | Continuam separados de tarifas, reservas e conteúdo comercial. |
+
+API key ou Bearer token é autenticação, não comprovação de gratuidade. Booking Demand API tem preços, fotos e redirecionamento, mas exige parceria e acesso contratual; não será requisito para iniciar. Não foi confirmado nesta revisão um acesso aberto, completo e sem custo obrigatório a tarifas aéreas reais. Dados de sandbox/mock não devem aparecer como ofertas reais.
+
+As consultas propostas usam HTTP com fetch nativo do Node. Não é preciso instalar SDK de Booking, Amadeus ou Wikimedia para este escopo. Nenhum novo pacote, serviço Docker, credencial ou endpoint foi adicionado nesta revisão: somente planejamento/documentação. Providers externos serão implementados em tarefas futuras.
+
+### 6.3. Briefing: catálogo unificado por destino
+
+- Objetivo: pesquisar uma cidade e consultar categorias hotéis, atrações, natureza, restaurantes e experiências locais, sem misturar os tipos de resultado.
+- Implementação: normalizar identificadores, coordenadas, descrição disponível, fontes, links e indicador de campos ausentes. Oferecer filtros e paginação compatíveis com cada fonte; não prometer busca completa global com uma única API.
+- Banco: places para registros de lugares importados/curados; experiences para passeios/serviços curados. Consultas externas não precisam ser salvas integralmente a cada pesquisa; salvar somente o necessário e permitido.
+- Rotas propostas: GET /api/v1/catalog?cityId=...&category=... e GET /api/v1/catalog/places/:id.
+- Critério: diferenciar resultados externos e catálogo próprio, tratar duplicação, cidade homônima e fornecedor indisponível. Sem resultado não significa que a atração/hotel não existe.
+
+### 6.4. Briefing: pesquisar passagens e direcionar a compra
+
+- Objetivo: receber aeroportos/cidades de origem e destino, datas, ida/volta e quantidade de passageiros.
+- Primeira entrega gratuita: pesquisar aeroportos no catálogo OurAirports e preparar links/ações para consultar voos em sites externos. Não entregar uma lista fictícia de voos/tarifas com base no catálogo de aeroportos.
+- Evolução opcional: adaptador de ofertas reais somente após confirmar acesso, custos, cobertura e permissão do fornecedor. Retornar companhia, trechos, horários, moeda, preço, contexto dos passageiros, fonte, consulta e link de compra, se a API realmente fornecer o link.
+- Banco: airports para catálogo. flights só depois de cadastro manual do voo contratado; não salvar todas as ofertas como reservas. Histórico privado de pesquisa não é obrigatório.
+- Rota proposta: POST /api/v1/search/flights. O contrato deve distinguir external_search de live_offers e devolver ações externas no primeiro modo.
+- Critério: nunca derivar preço de distância, aeroporto ou modelo do avião. Oferta não é reserva; URL de compra não deve ser inventada quando o fornecedor não a fornecer.
+
+### 6.5. Briefing: pesquisar hospedagens e consultar preços
+
+- Objetivo: buscar hotéis por cidade, com mapa, endereço, descrição e informações disponíveis. Receber também período e hóspedes para preparar a consulta externa ou uma futura busca real de disponibilidade.
+- Fonte: Geoapify para estabelecimentos; conteúdo próprio/autorizado e Wikimedia quando existir correspondência confiável para enriquecer. API de parceiro é uma evolução opcional para preços, disponibilidade e galeria comercial.
+- Banco: places e catalog_media para catálogo/fotos; stays para hospedagem contratada cadastrada pelo usuário.
+- Rotas propostas: GET /api/v1/search/hotels e GET /api/v1/catalog/places/:id. Pesquisa de oferta com datas pode usar POST quando o adaptador aprovado for implementado.
+- Critério: sem API de tarifa, mostrar preço não disponível e Consultar preços no site. Não interpretar preço ausente como zero ou gratuito. Foto ilustrativa de cidade não pode ser apresentada como foto do hotel/quarto.
+
+### 6.6. Briefing: detalhes de pontos turísticos e ingressos
+
+- Objetivo: mostrar atração, localização, descrição disponível, imagens autorizadas, horários quando conhecidos e informação de ingresso.
+- Fonte: Geoapify + enriquecimento identificado no Wikidata/Commons + curadoria de links oficiais. Informação comercial incompleta admite complemento manual pela equipe.
+- Banco: places, catalog_media; campos/referências de site oficial e URL de ingresso no lugar. Registrar fonte e data de verificação dos dados comerciais.
+- Estado de ingresso: gratuito, pago, depende da atividade ou desconhecido. Entrada do local e atividade paga dentro dele podem ter condições diferentes.
+- Critério: desconhecido não significa gratuito; sem link de ingresso confirmado, oferecer site oficial/consultar informações. Não afirmar a situação atual do Jardim Botânico ou de outra atração sem uma fonte verificada.
+
+### 6.7. Briefing: experiências e passeios de operadores
+
+- Objetivo: catalogar passeios como buggy, barcos, tours guiados e atividades oferecidas por operadores em uma cidade.
+- Implementação: catálogo curado inicial com operador, descrição, ponto de encontro, duração estimada, restrições informadas, lugares de parada e site/contato externo. Uma API de pontos turísticos não garante inventário de passeios ou disponibilidade por data.
+- Banco: experiences, experience_stops e catalog_media; vínculo a places quando houver local/ponto de encontro. Ao adicionar ao roteiro, criar activities com referência opcional à experiência.
+- Rotas propostas: GET /api/v1/catalog/experiences?cityId=... e GET /api/v1/catalog/experiences/:id.
+- Critério: distinguir atração física de serviço comercial. Não garantir passeio, preço ou disponibilidade sem confirmação do operador. Curadoria/cadastro de operador no catálogo é trabalho da equipe; cadastro de marketplace para operadores não entra agora.
+
+### 6.8. Briefing: fotos, fontes e atribuições
+
+- Objetivo: devolver mídia associada ao estabelecimento, atração ou experiência correta, com autoria/licença e imagem de fallback quando faltar foto.
+- Implementação: confirmar identificadores, nome e localização antes de associar mídia; preferir vínculo conhecido no Wikidata a uma correspondência por nome apenas. Consultar metadados de arquivo no Commons/MediaWiki, mantendo fonte, autor, licença, URL e atribuição exigida.
+- Banco: catalog_media, vinculado a place_id ou experience_id (exatamente um alvo por registro), com fonte e verificação. Guardar arquivo só quando a licença/contrato permitir.
+- Critério: rejeitar mídia sem direitos de uso claros; manter créditos e atender remoções. Não exibir dados de uma galeria como se todas as propriedades estivessem cobertas.
+
+### 6.9. Briefing: preço informativo e links externos
+
+- Objetivo: centralizar a comparação/consulta sem cobrar ou reservar no AeroClima.
+- Contrato: preço é opcional; quando existir, incluir valor, moeda, unidade (pessoa/noite/pacote), quantidade de hóspedes/passageiros, período, origem, consulta e validade informada. Não comparar totais diferentes como equivalentes.
+- Banco: metadados em places/experiences para preços curados, claramente indicativos; valores reais de ofertas somente conforme autorização de cache do fornecedor. Valor que o usuário efetivamente pagou pode ser gravado manualmente em flights, stays ou activities, separado da oferta externa.
+- Critério: link externo não muda status para comprado. Preço antigo aparece como referência datada; condições completas, taxas e confirmação ficam no site externo. Se a equipe não conseguir manter preços curados, usar apenas Consultar preços.
+- Links: tipos site oficial, ingressos, reservar hospedagem e pesquisar passagens. Validar URLs HTTPS e identificar o fornecedor; não confiar em URLs arbitrárias para redirecionamento aberto ou downloads pelo backend.
+
+### 6.10. Briefing: cadastrar o que foi contratado
+
+- Objetivo: depois da compra externa, permitir registro manual no planejamento.
+- Voo: companhia, número, aeroportos, datas/horários/fusos, reserva opcional, notas e franquias de bagagem.
+- Hospedagem: estabelecimento, período, check-in/out, reserva e observações.
+- Atividade/passeio: data, horário, operador, local de encontro, duração, link e observações.
+- Banco: flights, stays, activities e relações com trips/places/experiences; status registrado pelo próprio usuário não representa verificação de compra pelo AeroClima.
+- Critério: permitir preencher e corrigir manualmente mesmo quando as buscas externas falharem. Valor pago e referência de reserva são dados privados, tratados na etapa final de autorização/proteção.
+
+### 6.11. Briefing: bagagens incluídas por voo
+
+Esta alteração reintroduz franquias de bagagem por voo; não reintroduz checklist de mala ou sugestões de itens.
+
+- Objetivo: exibir três categorias com ícones distintos: item pessoal/mochila, mala de cabine e bagagem despachada.
+- Banco: flight_baggage_allowances, relacionado a flights. Guardar categoria, quantidade, peso máximo, dimensões quando conhecidas, fonte, data de consulta e confirmação do usuário; se necessário, diferenciar passageiro/tarifa.
+- Estado: incluída, não incluída, comprada à parte ou não informado. Não informado é diferente de proibido.
+- Rotas propostas: GET/PUT /api/v1/flights/:flightId/baggage. Edição das franquias de um voo não altera as de todos os voos da companhia.
+- Automação opcional: preencher somente quando a informação vier da oferta/reserva/tarifa aplicável ao passageiro e ao trecho, ou de política claramente identificada que ainda precisa de confirmação. Número/modelo do avião não determina sozinho a franquia contratada.
+- Critério: preenchimento manual sempre disponível; mostrar fonte e permitir correção. Não assumir mochila de 10 kg como regra universal, nem peso fixo de cabine/despachada. Limites variam com contexto e contrato; consultar as condições da companhia. Franquias diferentes em conexões permanecem por trecho.
+
+### 6.12. Ordem e limites
+
+1. API de viagens, aeroportos, registros manuais e franquias por voo.
+2. Catálogo por cidade: hotéis, atrações, experiências, fontes e links externos.
+3. Enriquecimento de fotos/detalhes e mapa/rotas.
+4. Oferta/preço automático somente se o acesso gratuito adequado for confirmado; não bloqueia as demais entregas.
+5. Autenticação, confirmação de email, duas etapas, isolamento, offline e proteção, conforme o planejamento anterior.
+
+Não há checkout, processamento de pagamentos, confirmação automática de compra, scraping de reservas, leitura automática de email ou obrigação de parceria paga nesta versão. O acesso ao site externo não exige um SDK npm. Os computadores permanecem alinhados pelas dependências atuais e seus lockfiles.
+
+### Referências desta revisão
+
+- OurAirports: https://ourairports.com/data/
+- Geoapify Places: https://apidocs.geoapify.com/docs/places/
+- Geoapify Place Details: https://apidocs.geoapify.com/docs/place-details/
+- Geoapify Free: https://www.geoapify.com/pricing/
+- Wikidata: https://www.wikidata.org/wiki/Wikidata:Data_access
+- Commons/MediaWiki: https://commons.wikimedia.org/wiki/Commons:API/MediaWiki
+- Metadados de imagens: https://www.mediawiki.org/wiki/API:Imageinfo
+- Booking: pré-requisitos https://developers.booking.com/demand/docs/getting-started/prerequisites
+- Booking: preços/fotos/redirecionamento https://developers.booking.com/demand/docs/accommodations/accommodation-tutorial
+- ANAC: condições de bagagem https://www.gov.br/anac/pt-br/assuntos/passageiros/bagagem
