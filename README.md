@@ -2,6 +2,8 @@
 
 Base local em NestJS + TypeScript, PostgreSQL e Docker. Frontend em [Vue + TypeScript](https://github.com/LucasPivovar/aeroclima-frontend).
 
+**[Guia completo: instalar, clonar, atualizar, desenvolver e entender cada arquivo](docs/GUIA.md).**
+
 ## Primeiro acesso
 
 Instale Git e Docker Desktop com WSL 2 e virtualização habilitados. Abra o Docker Desktop e clone os dois projetos lado a lado:
@@ -32,7 +34,7 @@ docker compose exec api npm test
 docker compose exec api npm run test:e2e
 docker compose exec api npm run lint
 docker compose exec frontend npm run build
-docker compose exec frontend npm run test:unit
+docker compose exec frontend npm test
 docker compose exec frontend npm run lint
 ```
 
