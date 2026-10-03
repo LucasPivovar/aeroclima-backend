@@ -1,8 +1,8 @@
-# Banco — proposta visual
+# Banco — proposta inicial
 
-![Tabelas, campos e relacionamentos](banco-de-dados.png)
+Tabelas previstas: users, trips, places, trip_places, flights, stays, activities, transfers, routes, reminders, weather_snapshots, offline_packages e offline_package_routes.
 
-Referência para vocês criarem as tabelas manualmente. Nenhuma tabela é criada automaticamente.
+Referência textual para vocês criarem as tabelas manualmente. Nenhuma tabela é criada automaticamente.
 
 PK = chave primária; FK = chave estrangeira; ? = opcional. Campos são uma proposta inicial, sujeita a revisão.
 

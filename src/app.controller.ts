@@ -1,11 +1,31 @@
 import {
   Controller,
   Get,
+  HttpCode,
   Inject,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiExcludeEndpoint,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { DatabaseService } from './database/database.service.js';
+
+@ApiTags('Início')
+@Controller()
+export class RootController {
+  @Get()
+  home() {
+    return { message: 'AeroClima API', status: 'ok' };
+  }
+
+  @Get('favicon.ico')
+  @HttpCode(204)
+  @ApiExcludeEndpoint()
+  favicon(): void {}
+}
 
 @ApiTags('Saúde')
 @Controller('health')
