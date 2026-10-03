@@ -1,0 +1,40 @@
+name: Backend CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: aeroclima_test
+          POSTGRES_USER: aeroclima
+          POSTGRES_PASSWORD: ci_test_only
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U aeroclima -d aeroclima_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_NAME: aeroclima_test
+      DB_USER: aeroclima
+      DB_PASSWORD: ci_test_only
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm test
+      - run: npm run test:e2e
+      - run: docker build --target development -t aeroclima-api-ci .
