@@ -36,4 +36,11 @@ export class UsersService {
 
         return userWithoutPassword;
     }
+
+    async findByEmailWithPassword(email: string) {
+        return this.userRepository.createQueryBuilder('user')
+            .addSelect('user.password')
+            .where('user.email = :email', { email })
+            .getOne();
+    }
 }

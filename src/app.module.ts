@@ -5,6 +5,7 @@ import { AppService } from './app.service.js';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from './users/user.entity.js'
 import { UsersModule } from './users/user.module.js'
+import { AuthModule } from './auth/auth.module.js';
 
 export const { ObserveModule, ObserveInstrument } = createObserveModule();
 
@@ -26,6 +27,7 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
 
     }),
     UsersModule,
+    AuthModule,
   ],
 
   controllers: [AppController],

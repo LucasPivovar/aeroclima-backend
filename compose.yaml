@@ -14,6 +14,7 @@ services:
       - DB_USER=${DB_USER:-postgres}
       - DB_PASSWORD=${DB_PASSWORD:-postgres}
       - DB_NAME=${DB_NAME:-aeroclima}
+      - JWT_SECRET=${JWT_SECRET:-aeroclima_super_secreto_chave_jwt_2026}
     depends_on:
       - db
 
